@@ -78,7 +78,12 @@ class Crawling(threading.Thread):
 
     # 프로그램 시작
     def run(self):
-        driver = webdriver.Chrome()
+        options = webdriver.ChromeOptions()
+        options.add_argument('headless')
+        options.add_argument('window-size=1920x1080')
+        options.add_argument("disable-gpu")
+
+        driver = webdriver.Chrome(options=options)
         driver.get("http://www.google.co.kr/imghp?hl=ko&tab=wi&ogbl")
         elem = driver.find_element_by_name("q")
         # 검색명
