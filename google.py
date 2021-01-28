@@ -7,39 +7,52 @@ import time
 import os
 import tkinter as tk
 import threading
-import queue
-
 
 
 
 class SearchFrame(tk.Tk):
+    #define
+    crawling = ''
+    splash=''
     def __init__(self):
         tk.Tk.__init__(self)
         self.geometry("320x150")
         self.title("이미지 검색 툴")
         self.resizable(False, False)
+
+
         #프레임 나누기
         searchframe=tk.Frame(self,relief="solid", width="320", height="300")
         searchframe.pack(side="top",fill="both",expand=True)
         # 이미지 저장 경로
-        self.pathEntry = tk.Entry(searchframe, bd=5, width=30)
-        self.pathLabel = tk.Label(searchframe, text="저장할 경로 :")
-        self.pathLabel.grid(column=0, row=0)
+        self.pathEntry = tk.Entry(searchframe, bd=5, width=30 )
+        pathLabel = tk.Label(searchframe, text="저장할 경로 :")
+        pathLabel.grid(column=0, row=0, padx=5)
         self.pathEntry.bind("<Button-1>", self.get_file_path)
-        self.pathEntry.grid(column=1, row=0, columnspan=2)
+        self.pathEntry.grid(column=1, row=0, columnspan=2,pady=5)
 
         # 검색내용
-        self.searchLabel = tk.Label(searchframe, text="검색할 내용 : ")
-        self.searchLabel.grid(column=0, row=1)
+        searchLabel = tk.Label(searchframe, text="검색할 내용 : ")
+        searchLabel.grid(column=0, row=1)
         self.searchEntry = tk.Entry(searchframe, bd=5)
         self.searchEntry.grid(column=1, row=1)
-        self.searchButton = tk.Button(searchframe, text="검색", width=8, command=self.start_crawling)
-        self.searchButton.grid(column=2, row=1)
+        searchButton = tk.Button(searchframe, text="검색", width=8, command=self.start_crawling)
+        searchButton.grid(column=2, row=1)
+        #저장하기 버튼
+        saveButton = tk.Button(searchframe,text="저장하기", width="40" ,command=self.save_button)
+        saveButton.grid(column=0, row=2, columnspan=4, pady=10,padx=10)
+
+
         progressframe=tk.Frame(self, relief="solid", width="320", height="20")
         progressframe.pack(side="bottom")
-        self.max=100
-        self.progressbar=tk.ttk.Progressbar(progressframe, maximum=2000,length=320)
-        self.progressbar.grid(column=0, row=0)
+        self.progressLabel = tk.Label(progressframe,text="0")
+        self.progressLabel.grid(column=17,row=0)
+        progressbar = tk.Label(progressframe, text="/")
+        progressbar.grid(column=18, row=0)
+        self.progressmaxLabel = tk.Label(progressframe, text="0")
+        self.progressmaxLabel.grid(column=19, row=0)
+        self.progressbar =tk.ttk.Progressbar(progressframe, maximum=2000,length=320)
+        self.progressbar.grid(column=0, row=1, columnspan=20)
 
 
     def get_file_path(self,event):
@@ -48,24 +61,45 @@ class SearchFrame(tk.Tk):
         self.pathEntry.insert(0, filePath)
 
     def start_crawling(self):
-        self.queue=queue.Queue()
         name = self.searchEntry.get()
         path = self.pathEntry.get()
-        crawling=Crawling(self.queue,name, path)
-        crawling.run()
-    def progressbar_update(idx):
-        SearchFrame.progressbar['value']=idx
-        SearchFrame.progressbar.update()
-        print(SearchFrame.progressbar['value'])
-    def progressbar_max(max):
-        SearchFrame.max=max
+        crawling=Crawling(self,name, path)
+        global  splash
+        splash=Splash(self)
+        self.progress_max(crawling.start())
+        #splash.destroy()
+    def donwload_value(self,idx):
+        self.progressLabel.configure(text=idx)
+        self.progressbar['value']=idx
+        self.progressbar.update()
+    def progress_max(self,length):
+        self.progressmaxLabel.configure(text=length)
+        self.progressbar.configure(maximum=length)
+    def save_button(self):
+        self.crawling.download(self)
+
+
+#스플레쉬 화면
+class Splash(tk.Toplevel):
+    def __init__(self, parent):
+        tk.Toplevel.__init__(self, parent)
+        self.title("검색중")
+        image = tk.PhotoImage(file="giphy.gif")
+        label = tk.Label(self, image=image)
+        label.pack()
+        ## required to make window show before the program gets to the mainloop
+        self.update()
+
+
 
 class Crawling(threading.Thread):
+    driver=''
+    images=''
     # keyName = "갱플랭크"
     # outPath = ""  # 이미지 저장폴더
-    def __init__(self,q, key, path):
+    def __init__(self,parent, key, path):
         threading.Thread.__init__(self)
-        self.__queue = q
+        self.parent=parent
         self.keyName = key
         self.outPath = path
 
@@ -77,13 +111,13 @@ class Crawling(threading.Thread):
     '''
 
     # 프로그램 시작
-    def run(self):
+    def run(self) ->int:
         options = webdriver.ChromeOptions()
         options.add_argument('headless')
         options.add_argument('window-size=1920x1080')
         options.add_argument("disable-gpu")
-
-        driver = webdriver.Chrome(options=options)
+        global driver
+        driver = webdriver.Chrome()
         driver.get("http://www.google.co.kr/imghp?hl=ko&tab=wi&ogbl")
         elem = driver.find_element_by_name("q")
         # 검색명
@@ -92,24 +126,32 @@ class Crawling(threading.Thread):
         elem.send_keys(Keys.RETURN)
         #스크롤
         self.scroll(driver)
-        # 폴더 생성
 
-        if not os.path.isdir(self.outPath + "/" + self.keyName):  # 폴더 존재하지 않으면 생성
-            os.makedirs(self.outPath + "/" + self.keyName)
         # 이미지 위치정보
+        global images
         images = driver.find_elements_by_css_selector('.isv-r.PNCib.MSM1fd.BUooTd')
         # 반복문 시작
-        SearchFrame.progressbar_max(len(images))
-        for idx, image in enumerate(images):
-            SearchFrame.progressbar_update(idx)
-            image.click()
-            driver.implicitly_wait(20)
-            imgUrl = driver.find_element_by_css_selector('.n3VNCb').get_attribute('src')
-            urllib.request.urlretrieve(imgUrl, self.outPath + "/" + self.keyName + "/" + str(idx) + ".jpg")
+        #SearchFrame.progressbar_max(len(images))
+
+        print(len(images))
+        return len(images)
+
 
         # 드라이버 종료
-        driver.quit()
+        #driver.quit()
 
+    def download(self,frame):
+        # 폴더 생성
+        if not os.path.isdir(self.outPath + "/" + self.keyName):  # 폴더 존재하지 않으면 생성
+            os.makedirs(self.outPath + "/" + self.keyName)
+        #download
+        for idx, image in enumerate(images):
+            image.click()
+            driver.implicitly_wait(20)
+
+            imgUrl = driver.find_element_by_css_selector('.n3VNCb').get_attribute('src')
+            urllib.request.urlretrieve(imgUrl, self.outPath + "/" + self.keyName + "/" + str(idx) + ".jpg")
+            SearchFrame.donwload_value(frame,idx)
 
 
     def scroll(self,driver):
