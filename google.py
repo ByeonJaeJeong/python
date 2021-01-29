@@ -1,4 +1,4 @@
-from tkinter import filedialog
+from tkinter import filedialog, TOP, BOTH, YES
 import tkinter.ttk
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
@@ -63,20 +63,29 @@ class SearchFrame(tk.Tk):
     def start_crawling(self):
         name = self.searchEntry.get()
         path = self.pathEntry.get()
-        crawling=Crawling(self,name, path)
-        global  splash
-        splash=Splash(self)
-        self.progress_max(crawling.start())
-        #splash.destroy()
+        self.crawling = Crawling(self, name, path)
+        #idx=self.crawling.start()
+        splash = Splash(self)
+
+
+        #self.crawling.join()
+
+        #self.progress_max(idx)
+
+
+
     def donwload_value(self,idx):
         self.progressLabel.configure(text=idx)
         self.progressbar['value']=idx
         self.progressbar.update()
     def progress_max(self,length):
+        print(length)
         self.progressmaxLabel.configure(text=length)
         self.progressbar.configure(maximum=length)
+        #self.splash.destroy()
     def save_button(self):
         self.crawling.download(self)
+
 
 
 #스플레쉬 화면
@@ -84,12 +93,22 @@ class Splash(tk.Toplevel):
     def __init__(self, parent):
         tk.Toplevel.__init__(self, parent)
         self.title("검색중")
-        image = tk.PhotoImage(file="giphy.gif")
-        label = tk.Label(self, image=image)
-        label.pack()
-        ## required to make window show before the program gets to the mainloop
-        self.update()
 
+        def update(x):
+            img = tk.PhotoImage(file='img/giphy.gif', format='gif -index ' + str(x), )
+            x += 1
+            if x > 32: x = 0
+            label.configure(image=img)
+            label.img = img
+            self.after(32, update, x)
+
+
+        label=tk.Label(self)
+        label.pack()
+        self.after(0,update,0)
+
+        ## required to make window show before the program gets to the mainloop
+        self.mainloop()
 
 
 class Crawling(threading.Thread):
@@ -132,7 +151,6 @@ class Crawling(threading.Thread):
         images = driver.find_elements_by_css_selector('.isv-r.PNCib.MSM1fd.BUooTd')
         # 반복문 시작
         #SearchFrame.progressbar_max(len(images))
-
         print(len(images))
         return len(images)
 
