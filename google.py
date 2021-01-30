@@ -63,14 +63,15 @@ class SearchFrame(tk.Tk):
     def start_crawling(self):
         name = self.searchEntry.get()
         path = self.pathEntry.get()
-        self.crawling = Crawling(self, name, path)
-        #idx=self.crawling.start()
-        splash = Splash(self)
+        #self.crawling = Crawling(self, name, path)
+        #idx = self.crawling.start()
+
+        self.crawling=threading.Thread(Crawling(self,name,path).run()).start()
 
 
-        #self.crawling.join()
-
-        #self.progress_max(idx)
+        self.crawling.join()
+        print(self.crawling)
+        self.progress_max(self.crawling)
 
 
 
@@ -82,7 +83,7 @@ class SearchFrame(tk.Tk):
         print(length)
         self.progressmaxLabel.configure(text=length)
         self.progressbar.configure(maximum=length)
-        #self.splash.destroy()
+        self.splash.destroy()
     def save_button(self):
         self.crawling.download(self)
 
