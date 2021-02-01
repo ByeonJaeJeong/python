@@ -1,24 +1,27 @@
-from tkinter import filedialog, TOP, BOTH, YES
+'''
+    Thread 를 이용해 같은 함수로 사용하면서 따로 작업할수 있게 할예정
+'''
+#라이브러리 import
+from tkinter import filedialog
 import tkinter.ttk
-
-from numpy.ma import resize
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 import urllib.request
 import time
 import os
 import tkinter as tk
-import threading
-
-
+import threading,queue
+#검색프레임 부터 들고옴
 class SearchFrame(tk.Tk):
     # define
-    crawling = ''
-    splash = ''
+    driver=''
+    images=''
+    outPath=''
+    keyName=''
 
     def __init__(self):
         tk.Tk.__init__(self)
-        self.geometry("320x150")
+        self.geometry("320x150+100+100")
         self.title("이미지 검색 툴")
         self.resizable(False, False)
 
@@ -40,8 +43,8 @@ class SearchFrame(tk.Tk):
         searchButton = tk.Button(searchframe, text="검색", width=8, command=self.start_crawling)
         searchButton.grid(column=2, row=1)
         # 저장하기 버튼
-        saveButton = tk.Button(searchframe, text="저장하기", width="40", command=self.save_button)
-        saveButton.grid(column=0, row=2, columnspan=4, pady=10, padx=10)
+        self.saveButton = tk.Button(searchframe, text="저장하기", width="40", command=self.save_button)
+        self.saveButton.grid(column=0, row=2, columnspan=4, pady=10, padx=10)
 
         progressframe = tk.Frame(self, relief="solid", width="320", height="20")
         progressframe.pack(side="bottom")
@@ -55,107 +58,85 @@ class SearchFrame(tk.Tk):
         self.progressbar.grid(column=0, row=1, columnspan=20)
 
     def get_file_path(self, event):
+
         filePath = filedialog.askdirectory(initialdir="/", title='Please select a directory')
         self.pathEntry.delete(0, "end")
         self.pathEntry.insert(0, filePath)
 
     def start_crawling(self):
-        name = self.searchEntry.get()
-        path = self.pathEntry.get()
+        global keyName
+        keyName = self.searchEntry.get()
+        global outPath
+        outPath = self.pathEntry.get()
+        q = queue.Queue()
+        t1 = threading.Thread(target=SearchFrame.crawling, args=(keyName, q), daemon=True)
+        t2 = threading.Thread(target=SearchFrame.splash, args=(self, t1,q), daemon=True)
+        t1.start()
+        t2.start()
 
-        t = threading.Thread(target=Crawling(self, name, path).start())
-        t.start()
-        return_value= t.result
-        print("리턴한 값 "+str(return_value))
-        try:
-            splash = Splash(self)
-        except:
-            print("오류 작동")
-        print("작동")
-        #splash.destroyValue = True
 
-        # self.crawling = Crawling(self, name, path)
-        # idx = self.crawling.start()
+    def splash(self, t, q):
+        toplevel = tk.Toplevel(self)
+        print("작동1")
+        toplevel.geometry("350x200+100+100")
+        toplevel.overrideredirect(True)
 
-        # self.crawling.join()
-        # print(self.crawling)
-        self.progress_max(t)
+        frameCnt = 22
+        frames = [tk.PhotoImage(file='img/332.gif', format='gif -index %i' % (i)) for i in range(frameCnt)]
 
+        def update(ind):
+            frame = frames[ind % frameCnt]
+            ind += 1
+            label.configure(image=frame)
+            if not t.is_alive():
+                self.progress_max(q.get())
+                toplevel.destroy()
+            toplevel.after(100, update, ind)
+
+        label = tk.Label(toplevel)
+        label.pack()
+        toplevel.after(0, update, 0)
+
+
+
+
+    #다운로드 한 벨류값을 저장
     def donwload_value(self, idx):
         self.progressLabel.configure(text=idx)
         self.progressbar['value'] = idx
         self.progressbar.update()
-
+    #검색해서 총갯수를 업데이트
     def progress_max(self, length):
         print(length)
         self.progressmaxLabel.configure(text=length)
         self.progressbar.configure(maximum=length)
-        self.splash.destroy()
+    #저장버튼 클릭 event
 
     def save_button(self):
-        self.crawling.download(self)
+        outPath = self.pathEntry.get()
+        KeyName= self.searchEntry.get()
+        #버튼 중지하기 버튼으로 변경
+        self.saveButton.configure(text="중지하기", command=self.stop_button())
+        alive=True
+        # 폴더 생성
+        if not os.path.isdir(outPath + "/" + keyName):  # 폴더 존재하지 않으면 생성
+            os.makedirs(outPath + "/" + keyName)
+        # download
+        for idx, image in enumerate(images):
+            image.click()
+            driver.implicitly_wait(20)
 
+            imgUrl = driver.find_element_by_css_selector('.n3VNCb').get_attribute('src')
+            urllib.request.urlretrieve(imgUrl, outPath + "/" + keyName + "/" + str(idx+1) + ".jpg")
+            SearchFrame.donwload_value(self, idx+1)
 
-# 스플레쉬 화면
-class Splash(tk.Toplevel):
+    #크롤링 이벤트
+    def stop_button(self):
+        alive=False
+        #self.saveButton.configure(text="저장하기", command=self.save_button())
+    def crawling(name, q):
+        #스크롤 이벤트
 
-    def __init__(self, parent):
-        tk.Toplevel.__init__(self, parent)
-        self.title("검색중")
-        destroyValue = False
-        self.geometry("300x200")
-        self.overrideredirect(True)
-        '''
-                def update(x):
-                    img = tk.PhotoImage(file='img/giphy.gif', format='gif -index ' + str(x), )
-                    x += 1
-                    if x > 32: x = 0
-                    label.configure(image=img)
-                    label.img = img
-                    self.after(32, update, x)
-        '''
-        #fameCnt까지 반복하면서 프레임을 전환하는 방식
-        frameCnt = 32
-        frames = [tk.PhotoImage(file='img/giphy.gif', format='gif -index %i' % (i)) for i in range(frameCnt)]
-        def update(ind):
-            frame = frames[ind%32]
-            ind += 1
-            if ind == frameCnt:
-                self.destroy()
-            label.configure(image=frame)
-            self.after(100, update, ind)
-
-
-        label = tk.Label(self)
-        label.pack()
-        self.after(0, update, 0)
-        self.update_idletasks()
-        ## required to make window show before the program gets to the mainloop
-        self.mainloop()
-
-
-class Crawling(threading.Thread):
-    driver = ''
-    images = ''
-
-    # keyName = "갱플랭크"
-    # outPath = ""  # 이미지 저장폴더
-    def __init__(self, parent, key, path):
-        threading.Thread.__init__(self)
-        self.parent = parent
-        self.keyName = key
-        self.outPath = path
-
-    '''
-    #검색어 패스 변경 메소드
-    def setKey(self,Name,path):
-        self.keyName=Name
-        self.outPath=path
-    '''
-
-    # 프로그램 시작
-
-    def run(self) -> int:
         options = webdriver.ChromeOptions()
         options.add_argument('headless')
         options.add_argument('window-size=1920x1080')
@@ -166,62 +147,44 @@ class Crawling(threading.Thread):
         elem = driver.find_element_by_name("q")
         # 검색명
 
-        elem.send_keys(self.keyName)
+        elem.send_keys(name)
         elem.send_keys(Keys.RETURN)
         # 스크롤
-        self.scroll(driver)
+        def scroll(driver):
+            SCROLL_PAUSE_TIME = 1
+
+            # Get scroll height
+            last_height = driver.execute_script("return document.body.scrollHeight")
+
+            while True:
+                # Scroll down to bottom
+                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+
+                # Wait to load page
+                time.sleep(SCROLL_PAUSE_TIME)
+                # driver.implicitly_wait(20)
+                # Calculate new scroll height and compare with last scroll height
+                new_height = driver.execute_script("return document.body.scrollHeight")
+                # 내린후 스크롤과 현재스크롤 비교
+                if new_height == last_height:
+                    try:
+                        # 더보기 클릭 오류나면 종료
+                        driver.find_element_by_css_selector('.mye4qd').click()
+                        continue
+                    except:
+                        print("스크롤 끝")
+                    break
+                last_height = new_height
+        scroll(driver)
 
         # 이미지 위치정보
         global images
         images = driver.find_elements_by_css_selector('.isv-r.PNCib.MSM1fd.BUooTd')
-        # 반복문 시작
-        # SearchFrame.progressbar_max(len(images))
-        print(len(images))
-        return len(images)
-
-        # 드라이버 종료
-        # driver.quit()
-
-    def download(self, frame):
-        # 폴더 생성
-        if not os.path.isdir(self.outPath + "/" + self.keyName):  # 폴더 존재하지 않으면 생성
-            os.makedirs(self.outPath + "/" + self.keyName)
-        # download
-        for idx, image in enumerate(images):
-            image.click()
-            driver.implicitly_wait(20)
-
-            imgUrl = driver.find_element_by_css_selector('.n3VNCb').get_attribute('src')
-            urllib.request.urlretrieve(imgUrl, self.outPath + "/" + self.keyName + "/" + str(idx) + ".jpg")
-            SearchFrame.donwload_value(frame, idx)
-
-    def scroll(self, driver):
-        SCROLL_PAUSE_TIME = 1
-
-        # Get scroll height
-        last_height = driver.execute_script("return document.body.scrollHeight")
-
-        while True:
-            # Scroll down to bottom
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-
-            # Wait to load page
-            time.sleep(SCROLL_PAUSE_TIME)
-            # driver.implicitly_wait(20)
-            # Calculate new scroll height and compare with last scroll height
-            new_height = driver.execute_script("return document.body.scrollHeight")
-            # 내린후 스크롤과 현재스크롤 비교
-            if new_height == last_height:
-                try:
-                    # 더보기 클릭 오류나면 종료
-                    driver.find_element_by_css_selector('.mye4qd').click()
-                    continue
-                except:
-                    print("오류")
-                break
-            last_height = new_height
+        print("스레드종료 반환값 : "+str(len(images)))
+        q.put(len(images))
 
 
+#메인루프 시작
 if __name__ == "__main__":
     app = SearchFrame()
     app.mainloop()
