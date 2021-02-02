@@ -119,7 +119,7 @@ class SearchFrame(tk.Tk):
         print("save btn action 실행")
         q=queue.Queue()
         #버튼 중지하기 버튼으로 변경
-        self.saveButton.configure(text="중지하기", command=self.stop_button())
+        self.saveButton.configure(state='DISABLE')
         global save_active
         save_active=True
         # 폴더 생성
