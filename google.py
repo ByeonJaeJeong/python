@@ -18,6 +18,7 @@ class SearchFrame(tk.Tk):
     images=''
     outPath=''
     keyName=''
+    save_active=''
 
     def __init__(self):
         tk.Tk.__init__(self)
@@ -115,14 +116,19 @@ class SearchFrame(tk.Tk):
     def save_button(self):
         outPath = self.pathEntry.get()
         KeyName= self.searchEntry.get()
+        print("save btn action 실행")
+        q=queue.Queue()
         #버튼 중지하기 버튼으로 변경
         self.saveButton.configure(text="중지하기", command=self.stop_button())
-        alive=True
+        global save_active
+        save_active=True
         # 폴더 생성
         if not os.path.isdir(outPath + "/" + keyName):  # 폴더 존재하지 않으면 생성
             os.makedirs(outPath + "/" + keyName)
         # download
         for idx, image in enumerate(images):
+            if save_active == False:
+                return
             image.click()
             driver.implicitly_wait(20)
 
@@ -130,10 +136,14 @@ class SearchFrame(tk.Tk):
             urllib.request.urlretrieve(imgUrl, outPath + "/" + keyName + "/" + str(idx+1) + ".jpg")
             SearchFrame.donwload_value(self, idx+1)
 
+    #def save_action(self):
+
     #크롤링 이벤트
     def stop_button(self):
-        alive=False
-        #self.saveButton.configure(text="저장하기", command=self.save_button())
+        global save_active
+        save_active=False
+        self.saveButton.configure(text="저장하기", command=self.save_button())
+
     def crawling(name, q):
         #스크롤 이벤트
 
