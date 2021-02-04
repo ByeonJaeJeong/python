@@ -2,7 +2,6 @@ from tkinter import filedialog
 from tkinter import messagebox
 import tkinter.ttk
 from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
 import urllib.request
 import time
 import os
@@ -21,7 +20,7 @@ class MainFrame(tk.Tk):
         #저장위치 프레임
         saveFrame=tk.LabelFrame(self, text="저장위치설정", relief="solid", width="500", height="100", bd=1)
         saveFrame.pack(side="top", fill="both", expand=False, padx=5, pady=2)
-
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
         #위치 적히는 entry
         self.pathEntry = tk.Entry(saveFrame, bd=2, width=60)
         self.pathEntry.insert(0, os.path.dirname(__file__)[:-6])
@@ -101,7 +100,7 @@ class MainFrame(tk.Tk):
         self.stopButton = tk.Button(actionFrame, text="정지", width="8", state=tk.DISABLED, command=self.download_stop)
         self.stopButton.pack(side="right", padx=3)
         # 시작 버튼
-        self.startButton = tk.Button(actionFrame, text="다운로드", width="8", command=self.down_action)
+        self.startButton = tk.Button(actionFrame, text="다운로드", width="8", command=self.down_action, state=tk.DISABLED)
         self.startButton.pack(side="right", padx=3, anchor="s")
 
     #저장위치 설정 클릭시 event 처리
@@ -114,10 +113,13 @@ class MainFrame(tk.Tk):
         self.pathEntry.configure(state="readonly")
     #검색 속성 가져오기
     def search_stop_event(self):
-        global driver
-        driver.quit()
-        self.search_startButton.configure(state=tk.NORMAL)
-        self.search_stopButton.configure(state=tk.DISABLED)
+        try:
+            self.driver.quit()
+        except:
+            print("검색 종료오류 발생")
+        finally:
+            self.search_startButton.configure(state=tk.NORMAL)
+            self.search_stopButton.configure(state=tk.DISABLED)
 
     def search_event(self):
         #옵션값
@@ -149,13 +151,13 @@ class MainFrame(tk.Tk):
         options.add_argument('window-size=1920x1080')
         options.add_argument("disable-gpu")
 
-        global driver
-        driver = webdriver.Chrome(options=options)
+
+        self.driver = webdriver.Chrome(options=options)
         pageUrl="http://www.google.co.kr/search?q="+name+"&tbm=isch&hl=ko&tbs="+color_dict[color]+time_dict[_time]+type_dict[type]+size_dict[size]
         result = pageUrl[len(pageUrl)-3:len(pageUrl)]
         if result == "%2C":
             pageUrl=pageUrl[:-3]
-        driver.get(pageUrl)
+        self.driver.get(pageUrl)
 
         # 검색명
 
@@ -187,11 +189,12 @@ class MainFrame(tk.Tk):
                         print("스크롤 끝")
                     break
                 last_height = new_height
-        scroll(driver)
+
+        scroll(self.driver)
 
         # 이미지 위치정보
         global images
-        images = driver.find_elements_by_css_selector('.isv-r.PNCib.MSM1fd.BUooTd')
+        images = self.driver.find_elements_by_css_selector('.isv-r.PNCib.MSM1fd.BUooTd')
         print("스레드종료 반환값 : "+str(len(images)))
         self.progressMaxLabel.configure(text=str(len(images)))
         self.search_startButton.configure(state=tk.NORMAL)
@@ -199,17 +202,20 @@ class MainFrame(tk.Tk):
         self.progressbar.configure(maximum=len(images))
         self.progressLabel.configure(text="0")
         self.progressbar['value']=0
+        self.startButton.configure(state=tk.NORMAL)
+        self.stopButton.configure(state=tk.DISABLED)
         messagebox.showinfo("검색완료","총파일수 : "+str(len(images)))
     def down_action(self):
         outPath = self.pathEntry.get()
         keyName = self.search_Entry.get()
-        down_t=threading.Thread(target=MainFrame.download, args=(self,outPath,keyName), daemon=True)
+        count=int(self.progressLabel['text'])
+        down_t=threading.Thread(target=MainFrame.download, args=(self,outPath,keyName,count), daemon=True)
         down_t.start()
     def download_stop(self):
         global save_active
         save_active=False
 
-    def download(self,outPath,keyName):
+    def download(self,outPath,keyName,count):
 
         print("save btn action 실행")
         q = queue.Queue()
@@ -224,12 +230,14 @@ class MainFrame(tk.Tk):
                 os.makedirs(outPath + "/" + keyName)
             # download
             for idx, image in enumerate(images):
+                if idx<count:
+                    continue
                 if save_active == False:
                     return
                 image.click()
-                driver.implicitly_wait(20)
+                self.driver.implicitly_wait(20)
 
-                imgUrl = driver.find_element_by_css_selector('.n3VNCb').get_attribute('src')
+                imgUrl = self.driver.find_element_by_css_selector('.n3VNCb').get_attribute('src')
                 urllib.request.urlretrieve(imgUrl, outPath + "/" + keyName + "/" + str(idx + 1) + ".jpg")
                 self.progressLabel.configure(text=idx + 1)
                 self.progressbar['value'] = idx + 1
@@ -242,16 +250,18 @@ class MainFrame(tk.Tk):
 
 
 
-
+    def on_closing(self):
+        if messagebox.askokcancel("종료", "종료하시겠습니까?"):
+            self.destroy()
+            try:
+                self.driver.quit()
+            except:
+                print("driver종료 실패!")
 
 
 
 
 #메인루프
 if __name__ == "__main__":
-    try:
-        app = MainFrame()
-        app.mainloop()
-        app.driver.quit()
-    except:
-        print("정상종료 실패")
+    app = MainFrame()
+    app.mainloop()
