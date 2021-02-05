@@ -12,7 +12,8 @@ class MainFrame(tk.Tk):
     driver = None
     images = ''
     q = ''
-    save_active=True
+    search_state = False
+    save_active = False
     def __init__(self):
         tk.Tk.__init__(self)
         self.geometry("500x300+100+100")
@@ -114,7 +115,7 @@ class MainFrame(tk.Tk):
     #검색 속성 가져오기
     def search_stop_event(self):
         try:
-            self.driver.quit()
+            self.search_state=False
         except:
             print("검색 종료오류 발생")
         finally:
@@ -122,11 +123,17 @@ class MainFrame(tk.Tk):
             self.search_stopButton.configure(state=tk.DISABLED)
 
     def search_event(self):
+        #다운로드 중 검색버튼 사용
+        if self.save_active==True:
+            messagebox.showerror("검색 오류!", "다운로드를 멈추고 검색해주세요.")
+            return
+        self.search_state==True
         #옵션값
         size = self.size_combobox.get()
         color = self.color_combobox.get()
         type = self.type_combobox.get()
         _time = self.time_combobox.get()
+        self.search_state=True
         #검색할 내용
         search_name = self.search_Entry.get()
         #결과를 확인하기 위한 Queue
@@ -147,7 +154,7 @@ class MainFrame(tk.Tk):
                     "흰색": "white%2C", "회색": "ic:specific%2Cisc:gray%2C", "검정색": "ic:specific%2Cisc:black%2C", "갈색": "ic:specific%2Cisc:brown%2C"}
         #스크롤 이벤트
         options = webdriver.ChromeOptions()
-        #options.add_argument('headless')
+        options.add_argument('headless')
         options.add_argument('window-size=1920x1080')
         options.add_argument("disable-gpu")
 
@@ -158,20 +165,16 @@ class MainFrame(tk.Tk):
         if result == "%2C":
             pageUrl=pageUrl[:-3]
         self.driver.get(pageUrl)
-
-        # 검색명
-
-
-
-
         # 스크롤
-        def scroll(driver):
+        def scroll(self, driver):
             SCROLL_PAUSE_TIME = 1
 
             # Get scroll height
             last_height = driver.execute_script("return document.body.scrollHeight")
 
             while True:
+                if self.search_state == False:
+                    break
                 # Scroll down to bottom
                 driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
                 # Wait to load page
@@ -186,11 +189,10 @@ class MainFrame(tk.Tk):
                         driver.find_element_by_css_selector('.mye4qd').click()
                         continue
                     except:
-                        print("스크롤 끝")
-                    break
+                        break
                 last_height = new_height
 
-        scroll(self.driver)
+        scroll(self, self.driver)
 
         # 이미지 위치정보
         global images
@@ -204,7 +206,7 @@ class MainFrame(tk.Tk):
         self.progressbar['value']=0
         self.startButton.configure(state=tk.NORMAL)
         self.stopButton.configure(state=tk.DISABLED)
-        messagebox.showinfo("검색완료","총파일수 : "+str(len(images)))
+        messagebox.showinfo("검색완료", "총파일수 : "+str(len(images)))
     def down_action(self):
         outPath = self.pathEntry.get()
         keyName = self.search_Entry.get()
@@ -212,11 +214,10 @@ class MainFrame(tk.Tk):
         down_t=threading.Thread(target=MainFrame.download, args=(self,outPath,keyName,count), daemon=True)
         down_t.start()
     def download_stop(self):
-        global save_active
-        save_active=False
+        self.save_active=False
 
     def download(self,outPath,keyName,count):
-
+        self.save_active=True
         print("save btn action 실행")
         q = queue.Queue()
         # 버튼 중지하기 버튼으로 변경
@@ -232,7 +233,7 @@ class MainFrame(tk.Tk):
             for idx, image in enumerate(images):
                 if idx<count:
                     continue
-                if save_active == False:
+                if self.save_active == False:
                     return
                 image.click()
                 self.driver.implicitly_wait(20)
