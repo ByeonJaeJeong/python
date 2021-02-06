@@ -121,7 +121,7 @@ class MainFrame(tk.Tk):
         finally:
             self.search_startButton.configure(state=tk.NORMAL)
             self.search_stopButton.configure(state=tk.DISABLED)
-
+    #검색 action
     def search_event(self):
         #다운로드 중 검색버튼 사용
         if self.save_active==True:
@@ -143,6 +143,7 @@ class MainFrame(tk.Tk):
         crawling_t.start()
         self.search_startButton.configure(state=tk.DISABLED)
         self.search_stopButton.configure(state=tk.NORMAL)
+    #검색thread
     def crawling(self,name, size, color, type, _time, q):
         #옵션값 dict
         size_dict={"모든 크기": "", "큼": "isz:l", "중간": "isz:m", "아이콘": "isz:i"}
@@ -207,15 +208,17 @@ class MainFrame(tk.Tk):
         self.startButton.configure(state=tk.NORMAL)
         self.stopButton.configure(state=tk.DISABLED)
         messagebox.showinfo("검색완료", "총파일수 : "+str(len(images)))
+    #다운로드 액션
     def down_action(self):
         outPath = self.pathEntry.get()
         keyName = self.search_Entry.get()
         count=int(self.progressLabel['text'])
         down_t=threading.Thread(target=MainFrame.download, args=(self,outPath,keyName,count), daemon=True)
         down_t.start()
+    #다운로드 정지
     def download_stop(self):
         self.save_active=False
-
+    #실제 다운로드 thread
     def download(self,outPath,keyName,count):
         self.save_active=True
         print("save btn action 실행")
@@ -248,6 +251,7 @@ class MainFrame(tk.Tk):
         finally:
             self.startButton.configure(state=tk.NORMAL)
             self.stopButton.configure(state=tk.DISABLED)
+
 
 
 
