@@ -23,8 +23,23 @@ def solution(phone_book):
         return True
 
     return answer
+#정석 대로의  해쉬 풀이
+
+def hash_solution(phone_book):
+    answer = True   #기본값
+    hash_map = {}   #헤쉬맵 선언
+    for phone_number in phone_book:
+        hash_map[phone_number] = 1
+    for phone_number in phone_book:
+        temp = ""
+        for number in phone_number:
+            temp += number
+            if temp in hash_map and temp != phone_number:
+                answer = False
+    return answer
 if __name__== "__main__":
     phone_books=	[["123","456","789"],["119", "97674223", "1195524421"],["12","123","1235","567","88"]]
     for phone_book in phone_books:
-        print(phone_book)
-        print(solution(phone_book))
+        #print(phone_book)
+        #print(solution(phone_book))
+        print(hash_solution(phone_book))
