@@ -1,5 +1,8 @@
 from collections import deque
+'''
+hash 2
 
+'''
 #내정답
 def solution(phone_book):
     phone_book.sort(key=len) #적은것을 메인으로 하기위해 정렬
@@ -37,6 +40,8 @@ def hash_solution(phone_book):
             if temp in hash_map and temp != phone_number:
                 answer = False
     return answer
+
+
 if __name__== "__main__":
     phone_books=	[["123","456","789"],["119", "97674223", "1195524421"],["12","123","1235","567","88"]]
     for phone_book in phone_books:
