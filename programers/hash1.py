@@ -39,8 +39,8 @@ def solution(participant, completion):
   return list(answer.keys())[0]                       #갯수가 같이 count 되어서 중복걱정을 안해도되며 교집합과 합집합 연산이 가능함
 
 #메인
-if __name__== "__main__":
-    participant=[["leo", "kiki", "eden"],["marina", "josipa", "nikola", "vinko", "filipa"]	,["mislav", "stanko", "mislav", "ana"]]
-    completion= [["eden", "kiki"],["josipa", "filipa", "marina", "nikola"],["stanko", "ana", "mislav"]]
-    for i in range(len(participant)):
-        print(solution(participant[i],completion[i]))
+# if __name__== "__main__":
+#     participant=[["leo", "kiki", "eden"],["marina", "josipa", "nikola", "vinko", "filipa"]	,["mislav", "stanko", "mislav", "ana"]]
+#     completion= [["eden", "kiki"],["josipa", "filipa", "marina", "nikola"],["stanko", "ana", "mislav"]]
+#     for i in range(len(participant)):
+#         print(solution(participant[i],completion[i]))
